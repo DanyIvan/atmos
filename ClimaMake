@@ -15,7 +15,7 @@ PLATFORM = osx
 #FCFLAG = -r8 -i8 -debug -g -diag-enable sv-include
 
 #optimized
-FC = gfortran
+FC = gfortran -std=legacy
 FCFLAG = -O3 -I. -fno-automatic -ftree-vectorize -fdefault-integer-8 -fdefault-real-8 -ffpe-trap=invalid
 #debugging versions
 #FCFLAG = -g -fbounds-check -Wall -fbacktrace -finit-real=nan
@@ -164,7 +164,7 @@ OBPATH = $(CDOTOC)/$(CSUR).o \
 # Load line
 ###############################
 
-$(OUTPUT) : $(OBPATH) 
+$(OUTPUT) : $(OBPATH)
 	$(FC) $(FCFLAG) -o $(OUTPUT) $(OBPATH)
 
 ###############################
@@ -334,7 +334,7 @@ $(CDOTOC)/$(CSCPY).o : $(CPATH6)/$(CSCPY).f
 $(CDOTOC)/$(CVINT).o : $(CPATH6)/$(CVINT).f
 	$(FC) $(FCFLAG) -c $(CPATH6)/$(CVINT).f
 	\mv $(CVINT).o $(CDOTOC)
- 
+
 $(CDOTOC)/$(CRSET).o : $(CPATH6)/$(CRSET).f
 	$(FC) $(FCFLAG) -c $(CPATH6)/$(CRSET).f
 	\mv $(CRSET).o $(CDOTOC)
@@ -404,7 +404,7 @@ conclude :
 	echo '================='
 
 clean:
-#	rm $(CDOTOR)/*.o	
+#	rm $(CDOTOR)/*.o
 	rm $(CDOTOC)/*.o
 	rm $(OUTPUT)
 
