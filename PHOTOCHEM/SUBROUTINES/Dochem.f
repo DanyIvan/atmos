@@ -328,7 +328,7 @@ C    !what follows is not in Jim's code
 
 C   S8 CONDENSATION (this is needed if we every want to deal with 'hot air' - s8 stays in the vapor phase       
 
-      skipS8=1
+      skipS8=0
 
       if (skipS8.eq.0) then 
   
@@ -445,6 +445,11 @@ C      ENDDO
       TP(I) = TP(I) + YP(I,J)*DZ(J)
       TL(I) = TL(I) + YL(I,J)*D(I,J)*DZ(J)
    8  CONTINUE
+   
 C
       RETURN
       END
+      
+
+
+C 
