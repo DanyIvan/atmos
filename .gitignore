@@ -236,3 +236,6 @@ readings/
 
 #images
 *.jpg
+
+#vscode files
+.vscode/
