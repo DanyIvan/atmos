@@ -1,9 +1,11 @@
 from scipy.io import FortranFile
 import fortranformat as ff
 from pandas.api.types import infer_dtype
+from tempfile import mkstemp
+from shutil import move, copymode
+from os import fdopen, remove
 import re
 
-species_file = '../PHOTOCHEM/INPUTFILES/species.dat'
 
 class Experiments:
     def __init__(self):
@@ -15,7 +17,7 @@ class Experiments:
 class AtmosPhotochem:
     def __init__(self, species):
         self.species = species
-
+    
     def run(self):
         self.species.write_data()
         pass
@@ -73,14 +75,29 @@ class Species:
         lens = [sum(lens[i:i+2]) for i in range(0, len(lens), 2)] 
         fmat = '{:'+'}{:'.join([str(i) for i in lens]) + '}' 
         return fmat
-
-    # TODO
+        
     def write_data(self):
-        pass
+        fh, abs_path = mkstemp()
+        with fdopen(fh,'w') as new_file:
+            with open(self.species_file) as old_file:
+                for line in old_file:
+                    if line[0] != '*' and line:
+                        key = line.split()[0] 
+                        vals = list(self.__dict__[key].values())
+                        fmat = vals[-1]
+                        vals.pop(-1)
+                        vals.insert(0, key)
+                        line = fmat.format(*vals) + '\n'
+                        new_file.write(line)
+                    else:
+                        new_file.write(line)
+        #Copy the file permissions from the old file to the new file
+        copymode(self.species_file, abs_path)
+        #Remove original file
+        remove(self.species_file)
+        #Move new file
+        move(abs_path, self.species_file)
 
     
-
-
-
 
 a = Species()
