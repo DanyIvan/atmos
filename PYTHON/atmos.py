@@ -1,10 +1,9 @@
-from scipy.io import FortranFile
-import fortranformat as ff
-from pandas.api.types import infer_dtype
 from tempfile import mkstemp
-from shutil import move, copymode
+from shutil import move, copymode, copy
 from os import fdopen, remove
+import subprocess
 import re
+import os
 
 
 class Experiments:
@@ -17,13 +16,49 @@ class Experiments:
 class AtmosPhotochem:
     def __init__(self, species):
         self.species = species
+        self.temp_path='../PHOTOCHEM/INPUTFILES/TEMPLATES/'
+        self.photochem_templates = ['Archean+haze', 'ArcheanSORG+haze',
+            'MarsModern+Cl',  'ModernEarth',  'ModernEarth+Cl']
+        self.input_filenames = ['in.dist', 'input_photchem.dat','reactions.rx',
+            'parameters.inc', 'species.dat', 'PLANET.dat']
+        self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.clean_command = ['make', '-f', 'PhotoMake', 'clean']
+        self.make_command = ['make', '-f', 'PhotoMake']
+        self.run_command = [self.dir_path + '/../Photo.run']
     
-    def run(self):
+    def run(self, template, recompile=True):
+        self.set_template(template)
         self.species.write_data()
-        pass
+        os.chdir('../')
+        if recompile:
+            self._run_command(self.clean_command)
+            self._run_command(self.make_command)
+        self._run_command(self.run_command)
+        os.chdir(self.dir_path)
+
+    def set_template(self, template):
+        if template not in self.photochem_templates:
+            raise NameError('Template not found')
+        folder = self.temp_path + template + '/'
+        os.chdir(folder)
+        for file in self.input_filenames:
+            copy(file, "../..")
+            print(f'Copied {file} from {os.getcwd()}')
+        os.chdir(self.dir_path)
+
 
     def get_output_data(self):
         pass
+
+    @staticmethod
+    def _run_command(command): 
+        process = subprocess.Popen(command, stdout=subprocess.PIPE) 
+        while True: 
+            output = process.stdout.readline() 
+            if output == b'' and process.poll() is not None: 
+                break 
+            if output: 
+                print(output.strip()) 
 
 class Species:
     def __init__(self):
@@ -75,7 +110,7 @@ class Species:
         lens = [sum(lens[i:i+2]) for i in range(0, len(lens), 2)] 
         fmat = '{:'+'}{:'.join([str(i) for i in lens]) + '}' 
         return fmat
-        
+
     def write_data(self):
         fh, abs_path = mkstemp()
         with fdopen(fh,'w') as new_file:
@@ -100,4 +135,6 @@ class Species:
 
     
 
-a = Species()
+species = Species()
+model = AtmosPhotochem(species)
+model.run('ModernEarth')
