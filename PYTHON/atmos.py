@@ -9,17 +9,32 @@ import re
 import os
 
 class Experiments:
+    '''
+    The Experiments class stores model runs
+
+    Attributes
+    -----------
+    models (list): list of model runs
+    '''
     def __init__(self):
         self.models = []
 
     def run_all(self, template):
+        '''Runs all the models in the models list'''
         for model in self.models:
             model.run(template)
 
     def animate(self, variant, name):
+        '''Makes a plotly animation of the output of an experiment
+        
+        Parameters
+        ----------
+        variant (list): list of values that a species takes trhought the
+        different model runs. Example variats for oxygen ['0.21', '0.20']
+        name (string): name of the variant: Example: 'O2'
+        '''
         if len(self.models) < 2:
             raise Exception('Experiments object must have at lest 2 models')
-        
         data = []
         for idx, model in enumerate(self.models):
             df = model.output.mixrat.melt(id_vars='ALT', var_name='var',
@@ -33,6 +48,23 @@ class Experiments:
 
 
 class AtmosPhotochem:
+    ''' 
+    The AtmosPhotochem class has all attributes and method necessary for running,
+        modifying and reading the output of the atmos photochem model
+
+    Attributes
+    ----------
+    temp_path(string): path of photochem template files
+    photochem_templates(list): names of currently available templates
+    input_filenames(list): names of inputfiles for running the model
+    dir_path(string): path of this file location
+    clean_command(list): command to run make clean
+    make_command(list): command to compile model
+    run_command(list): command to run model
+    species (class): class containing information about the model input for
+        chemical species
+    output(class): contains the output data of the model run
+    '''
     def __init__(self):
         self.temp_path='../PHOTOCHEM/INPUTFILES/TEMPLATES/'
         self.photochem_templates = ['Archean+haze', 'ArcheanSORG+haze',
@@ -47,6 +79,13 @@ class AtmosPhotochem:
         self.output = None
     
     def run(self, template, recompile=True):
+        '''Runs the model
+        
+        Parameters
+        ----------
+        template(string): template to run
+        recompile(bool): recompiles the model if true
+        '''
         self.set_template(template)
         self.species.write_data()
         os.chdir('../')
@@ -58,6 +97,12 @@ class AtmosPhotochem:
         self.output = Output()
 
     def set_template(self, template):
+        '''Sets the data of a template for a model run
+        
+        Parameters
+        ---------
+        template(string): templete to set
+        '''
         if template not in self.photochem_templates:
             raise NameError('Template not found')
         folder = self.temp_path + template + '/'
@@ -71,12 +116,20 @@ class AtmosPhotochem:
         os.chdir(self.dir_path)
     
     def set_species(self):
+        '''Sets species data'''
         self.species = Species()
 
     def set_output(self):
+        '''Sets output data'''
         self.output = Output()
 
     def plot_output(self, output):
+        '''Plots output data
+        
+        Parameters
+        ----------
+        output (DataFrame): contains the output data
+        '''
         melt_output = output.melt(id_vars='ALT', var_name='var',
              value_name='value') 
         fig = px.line(melt_output, x="value", y="ALT", color='var') 
@@ -84,6 +137,12 @@ class AtmosPhotochem:
 
     @staticmethod
     def _run_command(command): 
+        '''Runs a command retrieving output:
+        
+        Parameters
+        ---------
+        command(list): constains the command to run
+        '''
         process = subprocess.Popen(command, stdout=subprocess.PIPE) 
         while True: 
             output = process.stdout.readline() 
@@ -93,6 +152,17 @@ class AtmosPhotochem:
                 print(output.strip()) 
 
 class Output():
+    '''
+    This class stores reads and stores a model output data
+
+    Attributes
+    ---------
+    output_path (string): path of photochem model output
+    output_profile_path (string): path of ptofile output data file
+    output_mixrat_path (string): path of mixing ratios output data file
+    profile (DataFrame): contains profile output data
+    mixrat (DataFrame): contains mixing ratios output data
+    '''
     def __init__(self):
         self.output_path = '../PHOTOCHEM/OUTPUT/'
         self.output_profile_path = self.output_path + 'profile.pt'
@@ -102,6 +172,16 @@ class Output():
 
     @staticmethod
     def get_output_data(file):
+        '''Reads data from an output file
+        
+        Parameters
+        ---------
+        file (string): path of file to read
+
+        Retuns
+        ------
+        df (DataFrame): dataframe of output data
+        '''
         data = []
         with open(file) as f:
             for idx, line in enumerate(f.readlines()):
@@ -116,12 +196,26 @@ class Output():
     
 
 class Species_Dict(object):
+    ''' This class stores specific species data'''
     def __init__(self, adict):
         self.__dict__.update(adict)
     def __repr__(self):
         return dict.__repr__(self.__dict__)
 
 class Species:
+    ''' This class stores all the data of chemical species for a model
+
+    Attributes
+    ---------
+    species_file (string): path of species input data
+    header_longlived (list): contains varnames of longlived chemcial species
+    header_shortlived (list): contains varnames of shortlived chemcial species
+    header_inert (list): contains varnames of inert chemcial species
+    lines(list): contains the lines of species datafile
+    data(dict): contains data for each species
+    Each of the chemical species of a model run is also an attribute of this 
+        class
+    '''
     def __init__(self):
         self.species_file = '../PHOTOCHEM/INPUTFILES/species.dat'
         self. header_longlived = ['long_lived', 'O', 'H', 'C', 'S', 'N', 'CL', 'lbound', 'vdep0','fixedmr', 'sgflux', 'disth', 'mbound', 'smflux', 'veff0']
@@ -134,6 +228,12 @@ class Species:
             self.__dict__[key] = Species_Dict(self.data[key])
 
     def read_lines(self):
+        '''Reads lines of species datafile
+        
+        Returns
+        -------
+        lines(list): contains the lines of species datafile
+        '''
         lines = []
         with open(self.species_file, mode='r') as f:
             for line in f.readlines():
@@ -144,6 +244,12 @@ class Species:
         return lines
     
     def read_species_data(self):
+        '''Reads data of species datafile
+        
+        Returns
+        ------
+        species_data(dict): contains the data for each species
+        '''
         species_data = {}
         for line in self.lines:
             line_data = line.split()
@@ -164,6 +270,16 @@ class Species:
 
     @staticmethod
     def get_format(line):
+        '''Gets formar of a line
+        
+        Parameters
+        ----------
+        line(string): the line whose format is to be calculated
+
+        Returns
+        -------
+        fmat(string): format of line
+        '''
         items = re.split(r'(\s+)', line) 
         if items[-1] == '':
             items.pop(-1)
@@ -173,6 +289,7 @@ class Species:
         return fmat
 
     def write_data(self):
+        '''Writes data from a Species object to a species datafile'''
         fh, abs_path = mkstemp()
         with fdopen(fh,'w') as new_file:
             with open(self.species_file) as old_file:
