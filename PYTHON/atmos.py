@@ -1,7 +1,9 @@
 from tempfile import mkstemp
 from shutil import move, copymode, copy
 from os import fdopen, remove
+from ast import literal_eval
 import subprocess
+import pandas as pd
 import re
 import os
 
@@ -14,8 +16,7 @@ class Experiments:
         pass
 
 class AtmosPhotochem:
-    def __init__(self, species):
-        self.species = species
+    def __init__(self):
         self.temp_path='../PHOTOCHEM/INPUTFILES/TEMPLATES/'
         self.photochem_templates = ['Archean+haze', 'ArcheanSORG+haze',
             'MarsModern+Cl',  'ModernEarth',  'ModernEarth+Cl']
@@ -25,6 +26,8 @@ class AtmosPhotochem:
         self.clean_command = ['make', '-f', 'PhotoMake', 'clean']
         self.make_command = ['make', '-f', 'PhotoMake']
         self.run_command = [self.dir_path + '/../Photo.run']
+        self.species = Species()
+        self.output = None
     
     def run(self, template, recompile=True):
         self.set_template(template)
@@ -35,6 +38,7 @@ class AtmosPhotochem:
             self._run_command(self.make_command)
         self._run_command(self.run_command)
         os.chdir(self.dir_path)
+        self.output = Output()
 
     def set_template(self, template):
         if template not in self.photochem_templates:
@@ -42,13 +46,18 @@ class AtmosPhotochem:
         folder = self.temp_path + template + '/'
         os.chdir(folder)
         for file in self.input_filenames:
-            copy(file, "../..")
+            if file == 'in.dist':
+                copy(file, "../../..")
+            else:
+                copy(file, "../..")
             print(f'Copied {file} from {os.getcwd()}')
         os.chdir(self.dir_path)
+    
+    def set_species(self, species):
+        self.species = Species()
 
-
-    def get_output_data(self):
-        pass
+    def set_output(self, output):
+        self.output = Output()
 
     @staticmethod
     def _run_command(command): 
@@ -60,17 +69,47 @@ class AtmosPhotochem:
             if output: 
                 print(output.strip()) 
 
+class Output():
+    def __init__(self):
+        self.output_path = '../PHOTOCHEM/OUTPUT/'
+        self.output_profile_path = self.output_path + 'profile.pt'
+        self.output_mixrat_path = self.output_path + 'PTZ_mixingratios_out.dist'
+        self.profile = self.get_output_data(self.output_profile_path)
+        self.mixrat = self.get_output_data(self.output_mixrat_path)
+
+    @staticmethod
+    def get_output_data(file):
+        data = []
+        with open(file) as f:
+            for idx, line in enumerate(f.readlines()):
+                if idx == 0:
+                    header = line.split()
+                else:
+                    row = [eval(s) for s in line.split()]
+                    data.append(row)
+            return pd.DataFrame(data, columns=header)
+    
+
+            
+
 class Species:
     def __init__(self):
         self.species_file = '../PHOTOCHEM/INPUTFILES/species.dat'
-        self. header_longlived = ['long_lived', 'O', 'H', 'C', 'S', 'N', 'CL', 'lbound', 'vdep0',' fixedmr', 'sgflux', 'disth', 'mbound', 'smflux', 'veff0']
+        self. header_longlived = ['long_lived', 'O', 'H', 'C', 'S', 'N', 'CL', 'lbound', 'vdep0','fixedmr', 'sgflux', 'disth', 'mbound', 'smflux', 'veff0']
         self.header_shortlived = ['long_lived', 'O', 'H', 'C', 'S', 'N', 'CL']
         self.header_inert = ['long_lived', 'O', 'H', 'C', 'S', 'N', 'CL',
             'fixedmr']
         self.lines = self.read_lines()
         self.data = self.read_species_data()
+        
+        class species(object):
+            def __init__(self, adict):
+                self.__dict__.update(adict)
+            def __repr__(self):
+                return dict.__repr__(self.__dict__)
+
         for key in self.data.keys():
-            self.__dict__[key] = self.data[key]
+            self.__dict__[key] = species(self.data[key])
 
     def read_lines(self):
         lines = []
@@ -118,7 +157,7 @@ class Species:
                 for line in old_file:
                     if line[0] != '*' and line:
                         key = line.split()[0] 
-                        vals = list(self.__dict__[key].values())
+                        vals = list(self.__dict__[key].__dict__.values())
                         fmat = vals[-1]
                         vals.pop(-1)
                         vals.insert(0, key)
@@ -135,6 +174,7 @@ class Species:
 
     
 
-species = Species()
-model = AtmosPhotochem(species)
-model.run('ModernEarth')
+model = AtmosPhotochem()
+# model.run('ModernEarth')
+
+
