@@ -169,7 +169,14 @@ class Species:
         #Move new file
         move(abs_path, self.species_file)
 
+def save_object(object, filename):
+    with open(filename, 'wb') as f:
+        pickle.dump(object, f)
 
+def load_object(path):
+    with open(path, 'rb') as f:
+        object = pickle.load(f)
+    return object
 
 model = AtmosPhotochem()
 # model.run('ModernEarth')
