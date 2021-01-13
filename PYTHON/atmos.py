@@ -4,16 +4,16 @@ from os import fdopen, remove
 from ast import literal_eval
 import subprocess
 import pandas as pd
+import pickle
 import re
 import os
-
 
 class Experiments:
     def __init__(self):
         self.models = []
 
     def add_model(self, model):
-        pass
+        self.models.append(model)
 
 class AtmosPhotochem:
     def __init__(self):
@@ -90,7 +90,11 @@ class Output():
             return pd.DataFrame(data, columns=header)
     
 
-            
+class Species_Dict(object):
+    def __init__(self, adict):
+        self.__dict__.update(adict)
+    def __repr__(self):
+        return dict.__repr__(self.__dict__)
 
 class Species:
     def __init__(self):
@@ -101,15 +105,8 @@ class Species:
             'fixedmr']
         self.lines = self.read_lines()
         self.data = self.read_species_data()
-        
-        class species(object):
-            def __init__(self, adict):
-                self.__dict__.update(adict)
-            def __repr__(self):
-                return dict.__repr__(self.__dict__)
-
         for key in self.data.keys():
-            self.__dict__[key] = species(self.data[key])
+            self.__dict__[key] = Species_Dict(self.data[key])
 
     def read_lines(self):
         lines = []
@@ -172,7 +169,7 @@ class Species:
         #Move new file
         move(abs_path, self.species_file)
 
-    
+
 
 model = AtmosPhotochem()
 # model.run('ModernEarth')
