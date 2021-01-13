@@ -1,7 +1,7 @@
 from tempfile import mkstemp
 from shutil import move, copymode, copy
 from os import fdopen, remove
-from ast import literal_eval
+import plotly.express as px 
 import subprocess
 import pandas as pd
 import pickle
@@ -12,8 +12,25 @@ class Experiments:
     def __init__(self):
         self.models = []
 
-    def add_model(self, model):
-        self.models.append(model)
+    def run_all(self, template):
+        for model in self.models:
+            model.run(template)
+
+    def animate(self, variant, name):
+        if len(self.models) < 2:
+            raise Exception('Experiments object must have at lest 2 models')
+        
+        data = []
+        for idx, model in enumerate(self.models):
+            df = model.output.mixrat.melt(id_vars='ALT', var_name='var',
+            value_name='value')
+            df[name] = variant[idx]
+            data.append(df)
+        data = pd.concat(data)
+        fig = px.line(data, x="value", y="ALT", color='var',
+            animation_frame=name) 
+        fig.show()
+
 
 class AtmosPhotochem:
     def __init__(self):
@@ -53,11 +70,17 @@ class AtmosPhotochem:
             print(f'Copied {file} from {os.getcwd()}')
         os.chdir(self.dir_path)
     
-    def set_species(self, species):
+    def set_species(self):
         self.species = Species()
 
-    def set_output(self, output):
+    def set_output(self):
         self.output = Output()
+
+    def plot_output(self, output):
+        melt_output = output.melt(id_vars='ALT', var_name='var',
+             value_name='value') 
+        fig = px.line(melt_output, x="value", y="ALT", color='var') 
+        fig.show()
 
     @staticmethod
     def _run_command(command): 
@@ -87,7 +110,9 @@ class Output():
                 else:
                     row = [eval(s) for s in line.split()]
                     data.append(row)
-            return pd.DataFrame(data, columns=header)
+            df = pd.DataFrame(data, columns=header)
+            df.columns = [col.upper() for col in df.columns]
+            return df
     
 
 class Species_Dict(object):
