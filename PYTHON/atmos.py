@@ -70,7 +70,7 @@ class AtmosPhotochem:
         chemical species
     output(class): contains the output data of the model run
     '''
-    def __init__(self):
+    def __init__(self, template):
         self.temp_path='../PHOTOCHEM/INPUTFILES/TEMPLATES/'
         self.photochem_templates = ['Archean+haze', 'ArcheanSORG+haze',
             'MarsModern+Cl',  'ModernEarth',  'ModernEarth+Cl']
@@ -80,10 +80,12 @@ class AtmosPhotochem:
         self.clean_command = ['make', '-f', 'PhotoMake', 'clean']
         self.make_command = ['make', '-f', 'PhotoMake']
         self.run_command = [self.dir_path + '/../Photo.run']
+        self.template = template
+        self.set_template()
         self.species = Species()
         self.output = None
     
-    def run(self, template, recompile=True):
+    def run(self, recompile=True):
         '''Runs the model
         
         Parameters
@@ -91,7 +93,6 @@ class AtmosPhotochem:
         template(string): template to run
         recompile(bool): recompiles the model if true
         '''
-        self.set_template(template)
         self.species.write_data()
         os.chdir('../')
         if recompile:
@@ -101,23 +102,23 @@ class AtmosPhotochem:
         os.chdir(self.dir_path)
         self.output = Output()
 
-    def set_template(self, template):
+    def set_template(self):
         '''Sets the data of a template for a model run
         
         Parameters
         ---------
         template(string): templete to set
         '''
-        if template not in self.photochem_templates:
+        if self.template not in self.photochem_templates:
             raise NameError('Template not found')
-        folder = self.temp_path + template + '/'
+        folder = self.temp_path + self.template + '/'
         os.chdir(folder)
         for file in self.input_filenames:
             if file == 'in.dist':
                 copy(file, "../../..")
             else:
                 copy(file, "../..")
-            print(f'Copied {file} from {os.getcwd()}')
+            print('Copied {} from {}'.format(file, os.getcwd()))
         os.chdir(self.dir_path)
     
     def set_species(self):
@@ -297,6 +298,21 @@ class Species:
         fmat = '{:'+'}{:'.join([str(i) for i in lens]) + '}' 
         return fmat
 
+    def get_order(self, species_dict):
+        length = len(species_dict.values())
+        header_ll = self.header_longlived[:length-1]+ ['format']
+        header_in = self.header_inert[:length-1]+ ['format']
+        header_sl = self.header_shortlived[:length-1]+ ['format']
+        if species_dict['long_lived'] == 'LL':
+            order = header_ll
+        elif species_dict['long_lived'] == 'IN':
+            order = header_in if len(header_in) == length else \
+                header_ll[:length]
+        else:
+            order = header_sl if len(header_sl) == length else \
+                header_ll[:length]
+        return order
+
     def write_data(self):
         '''Writes data from a Species object to a species datafile'''
         fh, abs_path = mkstemp()
@@ -305,7 +321,9 @@ class Species:
                 for line in old_file:
                     if line[0] != '*' and line:
                         key = line.split()[0] 
-                        vals = list(self.__dict__[key].__dict__.values())
+                        species_dict = self.__dict__[key].__dict__                    
+                        order = self.get_order(species_dict)                    
+                        vals = [species_dict[key] for key in order]                    
                         fmat = vals[-1]
                         vals.pop(-1)
                         vals.insert(0, key)
@@ -329,7 +347,7 @@ def load_object(path):
         object = pickle.load(f)
     return object
 
-model = AtmosPhotochem()
+model = AtmosPhotochem('ModernEarth')
 # model.run('ModernEarth')
 
 
