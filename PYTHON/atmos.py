@@ -18,17 +18,22 @@ class Experiments:
     '''
     def __init__(self):
         self.models = []
+        self.variant = None
 
     def run_all(self, template):
         '''Runs all the models in the models list'''
         for model in self.models:
             model.run(template)
+    
+    def set_variant(self, variant):
+        self.variant = variant
 
-    def animate(self, variant, name):
+    def animate(self, output, variant, name):
         '''Makes a plotly animation of the output of an experiment
         
         Parameters
         ----------
+        output (string): one of 'profile' or 'mixrat'
         variant (list): list of values that a species takes trhought the
         different model runs. Example variats for oxygen ['0.21', '0.20']
         name (string): name of the variant: Example: 'O2'
@@ -37,8 +42,8 @@ class Experiments:
             raise Exception('Experiments object must have at lest 2 models')
         data = []
         for idx, model in enumerate(self.models):
-            df = model.output.mixrat.melt(id_vars='ALT', var_name='var',
-            value_name='value')
+            df = model.output.__dict__[output].melt(id_vars='ALT',
+            var_name='var', value_name='value')
             df[name] = variant[idx]
             data.append(df)
         data = pd.concat(data)
@@ -255,13 +260,17 @@ class Species:
             line_data = line.split()
 
             if line_data[1] == 'LL':
-                data = {k : v for k,v in zip(self.header_longlived, 
-                    line_data[1:])}
+                data = {k : v for k,v in zip(
+                    self.header_longlived[:len(line_data[1:])],line_data[1:])}
             elif line_data[1] == 'IN':
-                data = {k : v for k,v in zip(self.header_inert, 
+                header = self.header_inert if len(line_data[1:]) == len(
+                    self.header_inert) else self.header_longlived
+                data = {k : v for k,v in zip(header[:len(line_data[1:])],
                     line_data[1:])}
             else:
-                 data = {k : v for k,v in zip(self.header_shortlived, 
+                header = self.header_shortlived if len(line_data[1:]) == len(
+                    self.header_shortlived) else self.header_longlived
+                data = {k : v for k,v in zip(header[:len(line_data[1:])],
                     line_data[1:])}
 
             data['format'] = self.get_format(line)
